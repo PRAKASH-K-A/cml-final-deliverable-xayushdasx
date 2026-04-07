@@ -1,0 +1,232 @@
+<main class="terminal-shell">
+  <section class="hero-panel">
+    <div class="hero-copy">
+      <p class="kicker">Execution Console</p>
+      <h1>Live order blotter and fill stream</h1>
+      <p class="hero-text">
+        A real-time operations view for order intake, execution feedback, and
+        live market-side activity coming straight from the backend WebSocket feed.
+      </p>
+    </div>
+
+    <div class="hero-status">
+      <div class="status-pill" [class.live]="connectionState() === 'LIVE'">
+        <span class="status-dot"></span>
+        {{ connectionLabel() }}
+      </div>
+      <p class="hero-caption">WebSocket endpoint: <span>ws://localhost:8080</span></p>
+    </div>
+  </section>
+
+  <section class="summary-grid">
+    <article class="summary-card">
+      <p class="summary-label">Orders In View</p>
+      <p class="summary-value">{{ orders().length }}</p>
+      <p class="summary-note">Latest accepted and matched orders</p>
+    </article>
+
+    <article class="summary-card">
+      <p class="summary-label">Filled Orders</p>
+      <p class="summary-value">{{ filledOrders() }}</p>
+      <p class="summary-note">Fully completed incoming orders</p>
+    </article>
+
+    <article class="summary-card">
+      <p class="summary-label">Buy Volume</p>
+      <p class="summary-value">{{ buyVolume() | number:'1.0-0' }}</p>
+      <p class="summary-note">Shares submitted on the buy side</p>
+    </article>
+
+    <article class="summary-card">
+      <p class="summary-label">Sell Volume</p>
+      <p class="summary-value">{{ sellVolume() | number:'1.0-0' }}</p>
+      <p class="summary-note">Shares submitted on the sell side</p>
+    </article>
+
+    <article class="summary-card wide">
+      <p class="summary-label">Traded Notional</p>
+      <p class="summary-value">{{ tradedNotional() | number:'1.2-2' }}</p>
+      <p class="summary-note">Aggregate value of fills shown in the tape</p>
+    </article>
+
+    <article class="summary-card wide">
+      <p class="summary-label">Theoretical Option Value</p>
+      <p class="summary-value">
+        {{ latestOption() ? (latestOption()!.callPrice | number:'1.2-2') : '--' }}
+      </p>
+      <p class="summary-note">
+        {{ latestOption() ? latestOption()!.optionSymbol : 'Waiting for a trade to price the option.' }}
+      </p>
+    </article>
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="panel panel-wide">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Primary</p>
+          <h2>Order blotter</h2>
+        </div>
+        <p class="panel-meta">Price, leaves, and status after engine processing</p>
+      </div>
+
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>ClOrdID</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Qty</th>
+              <th>Leaves</th>
+              <th>Filled</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of orders(); track order.orderId) {
+              <tr>
+                <td class="mono strong">{{ order.clOrdID }}</td>
+                <td class="symbol">{{ order.symbol }}</td>
+                <td>
+                  <span class="side-chip" [class.buy]="order.side === '1'" [class.sell]="order.side === '2'">
+                    {{ sideLabel(order.side) }}
+                  </span>
+                </td>
+                <td class="mono">{{ order.quantity | number:'1.0-0' }}</td>
+                <td class="mono">{{ order.leavesQty | number:'1.0-0' }}</td>
+                <td class="mono">{{ order.filledQty | number:'1.0-0' }}</td>
+                <td class="mono">{{ order.price | number:'1.2-2' }}</td>
+                <td>
+                  <span class="status-tag" [class.filled]="order.status === 'FILLED'" [class.partial]="order.status === 'PARTIALLY_FILLED'">
+                    {{ order.status }}
+                  </span>
+                </td>
+                <td class="mono dim">{{ order.timestamp | date:'HH:mm:ss' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9" class="empty-state">Waiting for orders from the backend feed.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Lab 11</p>
+          <h2>Option valuation</h2>
+        </div>
+        <p class="panel-meta">Black-Scholes theoretical pricing from the live trade tape</p>
+      </div>
+
+      @if (latestOption(); as option) {
+        <div class="option-card">
+          <div class="option-topline">
+            <div>
+              <p class="trade-symbol">{{ option.optionSymbol }}</p>
+              <p class="trade-order mono">{{ option.underlyingSymbol }} spot {{ option.spotPrice | number:'1.2-2' }}</p>
+            </div>
+            <div class="option-price mono">{{ option.callPrice | number:'1.2-2' }}</div>
+          </div>
+
+          <div class="option-grid">
+            <div class="monitor-item">
+              <span>Last traded price</span>
+              <strong class="mono">{{ option.spotPrice | number:'1.2-2' }}</strong>
+            </div>
+            <div class="monitor-item">
+              <span>Call value</span>
+              <strong class="mono">{{ option.callPrice | number:'1.2-2' }}</strong>
+            </div>
+            <div class="monitor-item">
+              <span>Put value</span>
+              <strong class="mono">{{ option.putPrice | number:'1.2-2' }}</strong>
+            </div>
+            <div class="monitor-item">
+              <span>Strike</span>
+              <strong class="mono">{{ option.strike | number:'1.2-2' }}</strong>
+            </div>
+            <div class="monitor-item">
+              <span>Rate</span>
+              <strong class="mono">{{ option.rate | percent:'1.0-0' }}</strong>
+            </div>
+            <div class="monitor-item">
+              <span>Volatility</span>
+              <strong class="mono">{{ option.volatility | percent:'1.0-0' }}</strong>
+            </div>
+          </div>
+        </div>
+      } @else {
+        <div class="trade-empty">No option valuation yet. Execute a trade to derive the option price.</div>
+      }
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Lab 8</p>
+          <h2>Recent fills</h2>
+        </div>
+        <p class="panel-meta">Execution reports pushed in real time</p>
+      </div>
+
+      <div class="trade-tape">
+        @for (trade of trades(); track trade.execId) {
+          <div class="trade-row">
+            <div>
+              <p class="trade-symbol">{{ trade.symbol }}</p>
+              <p class="trade-order mono">{{ trade.incomingClOrdID }}</p>
+            </div>
+
+            <div class="trade-metrics">
+              <p class="trade-price mono">{{ trade.price | number:'1.2-2' }}</p>
+              <p class="trade-qty mono">{{ trade.quantity | number:'1.0-0' }} sh</p>
+            </div>
+
+            <div class="trade-side" [class.buy]="trade.side === '1'" [class.sell]="trade.side === '2'">
+              {{ sideLabel(trade.side) }}
+            </div>
+          </div>
+        } @empty {
+          <div class="trade-empty">No fills yet. Trades will appear here as soon as the engine matches an order.</div>
+        }
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Feed Health</p>
+          <h2>System monitor</h2>
+        </div>
+      </div>
+
+      <div class="monitor-list">
+        <div class="monitor-item">
+          <span>Socket state</span>
+          <strong [class.good]="connectionState() === 'LIVE'">{{ connectionLabel() }}</strong>
+        </div>
+        <div class="monitor-item">
+          <span>Tracked orders</span>
+          <strong>{{ orders().length }}</strong>
+        </div>
+        <div class="monitor-item">
+          <span>Tracked fills</span>
+          <strong>{{ trades().length }}</strong>
+        </div>
+        <div class="monitor-item">
+          <span>Latest traded average</span>
+          <strong class="mono">
+            {{ trades().length ? (trades()[0].avgPx | number:'1.2-2') : '--' }}
+          </strong>
+        </div>
+      </div>
+    </article>
+  </section>
+</main>
